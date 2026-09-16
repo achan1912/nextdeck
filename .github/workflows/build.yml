@@ -1,7 +1,7 @@
 name: Build iOS Unsigned IPA
 
 on:
-  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java (required for some Flutter dependencies)
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
@@ -24,7 +24,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x' # Use 'stable' or a specific version matching the project
+          flutter-version: '3.x'
           channel: 'stable'
           cache: true
 
@@ -36,16 +36,27 @@ jobs:
           cd ios
           pod install
 
-      - name: Build iOS Archive and IPA (Unsigned/No-Codesign)
+      - name: Build iOS App (Unsigned Binary)
         run: |
-          # Flutter allows building the IPA archive. 
-          # We use --no-pub since we already ran pub get, and target release mode.
-          flutter build ipa --release --no-codesign
+          flutter build ios --release --no-codesign
 
-      - name: Locate and Verify IPA Output
+      - name: Package Runner.app into an Unsigned IPA
         run: |
-          echo "Listing contents of build/ios/ipa:"
-          ls -la build/ios/ipa
+          # Create target ipa directory
+          mkdir -p build/ios/ipa
+          
+          # Navigate to the compiled iphoneos folder
+          cd build/ios/iphoneos
+          
+          # Create the Payload directory required for IPA structure
+          mkdir Payload
+          cp -r Runner.app Payload/
+          
+          # Compress Payload into an .ipa file
+          zip -r ../ipa/nextdeck-unsigned.ipa Payload
+          
+          # Return to root workspace
+          cd ../../..
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
