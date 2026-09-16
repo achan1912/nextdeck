@@ -36,9 +36,10 @@ jobs:
           cd ios
           pod install
 
-      - name: Build iOS App (Unsigned Binary)
+      - name: Build iOS App for Device (Unsigned)
         run: |
-          flutter build ios --release --no-codesign
+          # Explicitly target ios device build to force generation of iphoneos/Runner.app
+          flutter build ios --release --no-codesign --sdk ios
 
       - name: Package Runner.app into an Unsigned IPA
         run: |
