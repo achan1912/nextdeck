@@ -1,0 +1,54 @@
+name: Build iOS Unsigned IPA
+
+on:
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+  push:
+    branches:
+      - main
+
+jobs:
+  build-ios:
+    name: Compile Flutter iOS Unsigned IPA
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java (required for some Flutter dependencies)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x' # Use 'stable' or a specific version matching the project
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Build iOS Archive and IPA (Unsigned/No-Codesign)
+        run: |
+          # Flutter allows building the IPA archive. 
+          # We use --no-pub since we already ran pub get, and target release mode.
+          flutter build ipa --release --no-codesign
+
+      - name: Locate and Verify IPA Output
+        run: |
+          echo "Listing contents of build/ios/ipa:"
+          ls -la build/ios/ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextdeck-unsigned-ipa
+          path: build/ios/ipa/*.ipa
