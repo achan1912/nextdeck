@@ -36,37 +36,40 @@ jobs:
           cd ios
           pod install
 
+      - name: Disable Code Signing Requirements
+        run: |
+          # Patch Xcode project settings to bypass developer account requirements
+          PBXPROJ="ios/Runner.xcodeproj/project.pbxproj"
+          sed -i '' 's/CODE_SIGNING_STYLE = Automatic;/CODE_SIGNING_STYLE = Manual;/g' "$PBXPROJ"
+          sed -i '' 's/CODE_SIGNING_IDENTITY = "Apple Development";/CODE_SIGNING_IDENTITY = "";/g' "$PBXPROJ"
+          echo "Successfully disabled code signing constraints."
+        shell: bash
+
       - name: Build iOS App (Unsigned)
         run: |
           flutter build ios --release --no-codesign
 
-      - name: Locate and Package Runner.app into an Unsigned IPA
+      - name: Package Runner.app into an Unsigned IPA
         run: |
-          echo "Searching for compiled Runner.app..."
-          
-          # Dynamically find Runner.app anywhere inside build/ios to handle version differences
+          # Locate the compiled app bundle
           APP_PATH=$(find build/ios -name "Runner.app" -type d | grep -v "iphonesimulator" | head -n 1)
           
           if [ -z "$APP_PATH" ]; then
-            echo "Runner.app not found in device build paths. Checking all directories:"
-            find build/ios -name "Runner.app" -type d
+            echo "Error: Runner.app build output missing."
             exit 1
           fi
           
-          echo "Found Runner.app at: $APP_PATH"
+          echo "Found binary at: $APP_PATH"
           
-          # Create target ipa directory structure
+          # Bundle into IPA structure
           mkdir -p build/ios/ipa/Payload
-          
-          # Copy the app bundle into Payload
           cp -r "$APP_PATH" build/ios/ipa/Payload/
           
-          # Compress into IPA
           cd build/ios/ipa
           zip -r nextdeck-unsigned.ipa Payload
           cd ../../..
           
-          echo "Successfully created unsigned IPA!"
+          echo "Verification: IPA successfully created at build/ios/ipa/nextdeck-unsigned.ipa"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
