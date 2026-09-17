@@ -36,28 +36,37 @@ jobs:
           cd ios
           pod install
 
-      - name: Build iOS App for Device (Unsigned)
+      - name: Build iOS App (Unsigned)
         run: |
-          # Explicitly target ios device build to force generation of iphoneos/Runner.app
-          flutter build ios --release --no-codesign --sdk ios
+          flutter build ios --release --no-codesign
 
-      - name: Package Runner.app into an Unsigned IPA
+      - name: Locate and Package Runner.app into an Unsigned IPA
         run: |
-          # Create target ipa directory
-          mkdir -p build/ios/ipa
+          echo "Searching for compiled Runner.app..."
           
-          # Navigate to the compiled iphoneos folder
-          cd build/ios/iphoneos
+          # Dynamically find Runner.app anywhere inside build/ios to handle version differences
+          APP_PATH=$(find build/ios -name "Runner.app" -type d | grep -v "iphonesimulator" | head -n 1)
           
-          # Create the Payload directory required for IPA structure
-          mkdir Payload
-          cp -r Runner.app Payload/
+          if [ -z "$APP_PATH" ]; then
+            echo "Runner.app not found in device build paths. Checking all directories:"
+            find build/ios -name "Runner.app" -type d
+            exit 1
+          fi
           
-          # Compress Payload into an .ipa file
-          zip -r ../ipa/nextdeck-unsigned.ipa Payload
+          echo "Found Runner.app at: $APP_PATH"
           
-          # Return to root workspace
+          # Create target ipa directory structure
+          mkdir -p build/ios/ipa/Payload
+          
+          # Copy the app bundle into Payload
+          cp -r "$APP_PATH" build/ios/ipa/Payload/
+          
+          # Compress into IPA
+          cd build/ios/ipa
+          zip -r nextdeck-unsigned.ipa Payload
           cd ../../..
+          
+          echo "Successfully created unsigned IPA!"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
